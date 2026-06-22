@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Template Literal XSS</title>
+    <title>Event Handler Attribute XSS</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
         .container { padding: 1rem; }
@@ -28,45 +28,40 @@
 </head>
 <body>
     <div class="container">
-        <h1>Template Literal XSS</h1>
+        <h1>Event Handler Attribute XSS</h1>
 
         <div class="hint">
             <strong>Try this:</strong>
-            <code>&lt;img src=x onerror=alert('Template Literal XSS')&gt;</code>
+            <code>" onload="alert('Event Handler XSS')</code>
+            <br>(This breaks the attribute context and injects a new event handler)
         </div>
 
-        <label for="input">Search users by name:</label>
+        <label for="input">Button label:</label>
         <br><br>
-        <input id="input" type="text" placeholder="Type a name...">
-        <button onclick="searchUsers()">Search</button>
+        <input id="input" type="text" placeholder="Enter button text..." value="Click me">
+        <button onclick="createButton()">Create Button</button>
 
-        <div id="results"></div>
+        <div id="container"></div>
     </div>
 
     <script>
-        // Mock user database
-        const users = [
-            { id: 1, name: "Alice" },
-            { id: 2, name: "Bob" },
-            { id: 3, name: "Charlie" }
-        ];
+        function createButton() {
+            const userText = document.getElementById("input").value;
 
-        function searchUsers() {
-            const searchTerm = document.getElementById("input").value;
-            const results = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
+            // VULNERABLE: Building HTML with unsanitized user input in attribute context
+            // Breaking out of the title attribute and injecting event handler
+            const html = `<button title="${userText}">Custom Button</button>`;
 
-            // VULNERABLE: Building HTML via template literal with unsanitized user input
-            // String interpolation in backticks, then inserted via innerHTML
-            const html = `
-                <h3>Search results for "${searchTerm}":</h3>
-                ${results.map(user => `<p><strong>${user.name}</strong> (ID: ${user.id})</p>`).join("")}
-            `;
-
-            document.getElementById("results").innerHTML = html;
+            document.getElementById("container").innerHTML = html;
         }
 
+        // Example of what happens when you submit:
+        // Input: " onmouseover="alert('XSS')
+        // Result: <button title="" onmouseover="alert('XSS')">Custom Button</button>
+        // The attribute breaks and a new event is created
+
         document.getElementById("input").addEventListener("keypress", function(e) {
-            if (e.key === "Enter") searchUsers();
+            if (e.key === "Enter") createButton();
         });
     </script>
 </body>
