@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>DOM XSS via fetch() response body</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
+        .container { padding: 1rem; }
+        #profile {
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+            min-height: 2rem;
+            background: #f9f9f9;
+        }
+        .hint {
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DOM XSS via fetch() response</h1>
+
+        <div class="hint">
+            The profile "bio" comes from an API response and is rendered with
+            <code>innerHTML</code>. If any field of that JSON is attacker-controlled
+            (e.g. a self-editable bio stored server-side), it executes here. The
+            <em>source is the network response</em>, which analyzers often treat as trusted.
+            <br>e.g. an API returning <code>{"bio":"&lt;img src=x onerror=alert(document.domain)&gt;"}</code>
+        </div>
+
+        <div id="profile">Loading profile…</div>
+    </div>
+
+    <script>
+        // Realistic pattern: render a user profile fetched from a backend API.
+        // SOURCE = the fetch() response body (untrusted: reflects user-supplied,
+        // server-stored data such as a bio/handle).
+        function loadProfile() {
+            fetch("/api/profile")
+                .then(res => res.json())
+                .then(profile => {
+                    // SINK: response field rendered straight to innerHTML, no escaping
+                    document.getElementById("profile").innerHTML =
+                        "<h3>" + profile.name + "</h3><p>" + profile.bio + "</p>";
+                })
+                .catch(() => {
+                    document.getElementById("profile").textContent =
+                        "(no /api/profile endpoint in this static demo — SAST analyzes the code path statically)";
+                });
+        }
+
+        window.addEventListener("load", loadProfile);
+    </script>
+</body>
+</html>
