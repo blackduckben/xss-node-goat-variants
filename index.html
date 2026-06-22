@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>URL Parameter Reflected XSS</title>
+    <title>postMessage XSS</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
         .container { padding: 1rem; }
@@ -28,37 +28,33 @@
 </head>
 <body>
     <div class="container">
-        <h1>URL Parameter Reflected XSS</h1>
+        <h1>postMessage XSS</h1>
 
         <div class="hint">
-            <strong>Try this in the URL:</strong>
-            <code>?name=&lt;img src=x onerror=alert('Reflected XSS')&gt;</code>
-            <br>Copy the link below, edit the query param, and visit it
+            <strong>Open browser console and run:</strong>
+            <code>window.postMessage("&lt;img src=x onerror=alert('postMessage XSS')&gt;", "*")</code>
         </div>
 
-        <p id="greeting"></p>
-        <p id="link-copy"></p>
+        <p>Receiving messages from other windows/iframes...</p>
+        <div id="message-display" style="border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; min-height: 2rem;"></div>
     </div>
 
     <script>
-        // VULNERABLE: Reflected XSS from URL parameter
-        // No sanitization of query string parameters before rendering to DOM
+        // VULNERABLE: postMessage handler with no origin validation and unsafe innerHTML
+        // Accepts any message from any origin and renders to DOM
 
-        function init() {
-            const params = new URLSearchParams(window.location.search);
-            const name = params.get("name") || "Guest";
+        window.addEventListener("message", function(event) {
+            // VULNERABLE: No origin validation (should check event.origin)
+            // VULNERABLE: Rendering untrusted message data directly to innerHTML
+            const messageContent = event.data;
+            document.getElementById("message-display").innerHTML = messageContent;
 
-            // Directly inserting URL parameter into innerHTML
-            document.getElementById("greeting").innerHTML = `Hello, ${name}!`;
+            console.log("Received message:", messageContent);
+        });
 
-            // Generate a shareable link
-            const currentUrl = window.location.href;
-            document.getElementById("link-copy").innerHTML =
-                `<strong>Current link:</strong><br><code>${currentUrl}</code>`;
-        }
-
-        // Run on page load
-        window.addEventListener("load", init);
+        // Safe version would be:
+        // if (event.origin !== "https://trusted-domain.com") return;
+        // And should escape the content or use textContent instead of innerHTML
     </script>
 </body>
 </html>
