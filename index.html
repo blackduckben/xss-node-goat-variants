@@ -2,13 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Template Literal XSS</title>
+    <title>Template Literal XSS (tuned: location.hash source)</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
         .container { padding: 1rem; }
-        input { padding: 0.5rem; font-size: 1rem; width: 80%; }
-        button { padding: 0.5rem 1rem; cursor: pointer; }
-        #output {
+        #results {
             border: 2px solid #ddd;
             border-radius: 6px;
             padding: 1rem;
@@ -28,17 +26,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>Template Literal XSS</h1>
+        <h1>Template Literal XSS (tuned)</h1>
 
         <div class="hint">
-            <strong>Try this:</strong>
-            <code>&lt;img src=x onerror=alert('Template Literal XSS')&gt;</code>
+            <strong>Try this in the URL:</strong>
+            <code>#&lt;img src=x onerror=alert('Template Literal XSS')&gt;</code>
+            <br>The search term is read from <code>location.hash</code> (e.g. a
+            shareable "deep link" to a search) and rendered on load / hashchange.
         </div>
-
-        <label for="input">Search users by name:</label>
-        <br><br>
-        <input id="input" type="text" placeholder="Type a name...">
-        <button onclick="searchUsers()">Search</button>
 
         <div id="results"></div>
     </div>
@@ -52,11 +47,12 @@
         ];
 
         function searchUsers() {
-            const searchTerm = document.getElementById("input").value;
+            // TUNED: search term sourced from location.hash (a recognized
+            // DOM-XSS taint source) instead of an in-page form field's .value
+            const searchTerm = decodeURIComponent(location.hash.slice(1));
             const results = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-            // VULNERABLE: Building HTML via template literal with unsanitized user input
-            // String interpolation in backticks, then inserted via innerHTML
+            // SINK unchanged from the base branch: template literal -> innerHTML
             const html = `
                 <h3>Search results for "${searchTerm}":</h3>
                 ${results.map(user => `<p><strong>${user.name}</strong> (ID: ${user.id})</p>`).join("")}
@@ -65,9 +61,8 @@
             document.getElementById("results").innerHTML = html;
         }
 
-        document.getElementById("input").addEventListener("keypress", function(e) {
-            if (e.key === "Enter") searchUsers();
-        });
+        window.addEventListener("load", searchUsers);
+        window.addEventListener("hashchange", searchUsers);
     </script>
 </body>
 </html>
