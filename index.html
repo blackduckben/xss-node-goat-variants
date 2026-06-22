@@ -2,13 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>jQuery-based XSS</title>
+    <title>jQuery-based XSS (tuned: location.hash source)</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
         .container { padding: 1rem; }
-        input { padding: 0.5rem; font-size: 1rem; width: 80%; }
-        button { padding: 0.5rem 1rem; cursor: pointer; }
-        #output {
+        #comments {
             border: 2px solid #ddd;
             border-radius: 6px;
             padding: 1rem;
@@ -28,17 +26,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>jQuery-based XSS</h1>
+        <h1>jQuery-based XSS (tuned)</h1>
 
         <div class="hint">
-            <strong>Try this:</strong>
-            <code>&lt;img src=x onerror=alert('jQuery XSS')&gt;</code>
+            <strong>Try this in the URL:</strong>
+            <code>#&lt;img src=x onerror=alert('jQuery XSS')&gt;</code>
+            <br>The fragment after <code>#</code> is read from <code>location.hash</code>
+            and rendered on load / hashchange.
         </div>
-
-        <label for="input">Comment (jQuery .html()):</label>
-        <br><br>
-        <input id="input" type="text" placeholder="Type something...">
-        <button onclick="renderComment()">Post</button>
 
         <div id="comments"></div>
     </div>
@@ -46,18 +41,15 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         function renderComment() {
-            const userComment = document.getElementById("input").value;
+            // TUNED: source is location.hash (a recognized DOM-XSS taint source)
+            // instead of an in-page form field's .value
+            const userComment = decodeURIComponent(location.hash.slice(1));
 
-            // VULNERABLE: jQuery .html() with unsanitized user input
-            // Same issue as innerHTML but via jQuery
+            // SINK unchanged from the base branch: jQuery .html()
             $("#comments").html(userComment);
-
-            document.getElementById("input").value = "";
         }
 
-        document.getElementById("input").addEventListener("keypress", function(e) {
-            if (e.key === "Enter") renderComment();
-        });
+        $(window).on("load hashchange", renderComment);
     </script>
 </body>
 </html>
