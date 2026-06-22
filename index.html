@@ -2,11 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>DOM-based XSS</title>
+    <title>DOM-based XSS (tuned: location.hash source)</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
         .container { padding: 1rem; }
-        input { padding: 0.5rem; font-size: 1rem; width: 80%; }
         button { padding: 0.5rem 1rem; cursor: pointer; }
         #output {
             border: 2px solid #ddd;
@@ -28,36 +27,30 @@
 </head>
 <body>
     <div class="container">
-        <h1>DOM-based XSS</h1>
+        <h1>DOM-based XSS (tuned)</h1>
 
         <div class="hint">
-            <strong>Try this:</strong>
-            <code>&lt;img src=x onerror=alert('XSS from ' + document.domain)&gt;</code>
-            <br>
-            or: <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code>
+            <strong>Try this in the URL:</strong>
+            <code>#&lt;img src=x onerror=alert('XSS from ' + document.domain)&gt;</code>
+            <br>The fragment after <code>#</code> is read from <code>location.hash</code>
+            and rendered on load / hashchange.
         </div>
-
-        <label for="input">Enter some HTML:</label>
-        <br><br>
-        <input id="input" type="text" placeholder="Type something...">
-        <button onclick="renderInput()">Render</button>
 
         <div id="output"></div>
     </div>
 
     <script>
-        function renderInput() {
-            const userInput = document.getElementById("input").value;
+        function render() {
+            // TUNED: source is location.hash (a recognized DOM-XSS taint source)
+            // instead of an in-page form field's .value
+            const userInput = decodeURIComponent(location.hash.slice(1));
 
-            // VULNERABLE: directly inserting user input into innerHTML
-            // No sanitization, no escaping
+            // SINK unchanged from the base branch: direct innerHTML assignment
             document.getElementById("output").innerHTML = userInput;
         }
 
-        // Allow Enter key to trigger render
-        document.getElementById("input").addEventListener("keypress", function(e) {
-            if (e.key === "Enter") renderInput();
-        });
+        window.addEventListener("load", render);
+        window.addEventListener("hashchange", render);
     </script>
 </body>
 </html>
