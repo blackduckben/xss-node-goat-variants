@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>DOM-based XSS</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
+        .container { padding: 1rem; }
+        input { padding: 0.5rem; font-size: 1rem; width: 80%; }
+        button { padding: 0.5rem 1rem; cursor: pointer; }
+        #output {
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+            min-height: 2rem;
+            background: #f9f9f9;
+        }
+        .hint {
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DOM-based XSS</h1>
+
+        <div class="hint">
+            <strong>Try this:</strong>
+            <code>&lt;img src=x onerror=alert('XSS from ' + document.domain)&gt;</code>
+            <br>
+            or: <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code>
+        </div>
+
+        <label for="input">Enter some HTML:</label>
+        <br><br>
+        <input id="input" type="text" placeholder="Type something...">
+        <button onclick="renderInput()">Render</button>
+
+        <div id="output"></div>
+    </div>
+
+    <script>
+        function renderInput() {
+            const userInput = document.getElementById("input").value;
+
+            // VULNERABLE: directly inserting user input into innerHTML
+            // No sanitization, no escaping
+            document.getElementById("output").innerHTML = userInput;
+        }
+
+        // Allow Enter key to trigger render
+        document.getElementById("input").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") renderInput();
+        });
+    </script>
+</body>
+</html>
