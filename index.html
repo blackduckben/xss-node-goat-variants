@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>DOM-based XSS</title>
+    <title>jQuery-based XSS</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
         .container { padding: 1rem; }
@@ -28,35 +28,35 @@
 </head>
 <body>
     <div class="container">
-        <h1>DOM-based XSS</h1>
+        <h1>jQuery-based XSS</h1>
 
         <div class="hint">
             <strong>Try this:</strong>
-            <code>&lt;img src=x onerror=alert('XSS from ' + document.domain)&gt;</code>
-            <br>
-            or: <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code>
+            <code>&lt;img src=x onerror=alert('jQuery XSS')&gt;</code>
         </div>
 
-        <label for="input">Enter some HTML:</label>
+        <label for="input">Comment (jQuery .html()):</label>
         <br><br>
         <input id="input" type="text" placeholder="Type something...">
-        <button onclick="renderInput()">Render</button>
+        <button onclick="renderComment()">Post</button>
 
-        <div id="output"></div>
+        <div id="comments"></div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        function renderInput() {
-            const userInput = document.getElementById("input").value;
+        function renderComment() {
+            const userComment = document.getElementById("input").value;
 
-            // VULNERABLE: directly inserting user input into innerHTML
-            // No sanitization, no escaping
-            document.getElementById("output").innerHTML = userInput;
+            // VULNERABLE: jQuery .html() with unsanitized user input
+            // Same issue as innerHTML but via jQuery
+            $("#comments").html(userComment);
+
+            document.getElementById("input").value = "";
         }
 
-        // Allow Enter key to trigger render
         document.getElementById("input").addEventListener("keypress", function(e) {
-            if (e.key === "Enter") renderInput();
+            if (e.key === "Enter") renderComment();
         });
     </script>
 </body>
