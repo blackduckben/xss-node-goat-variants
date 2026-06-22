@@ -4,14 +4,17 @@ const MemosDAO = require("../data/memos-dao").MemosDAO;
 const { marked } = require("marked");
 
 /*
- * Faithful to the NodeGoat handler you provided: addMemos stores the raw
- * req.body.memo, then displayMemos reads them all back and renders the
- * "memos" view. The only addition is `marked` turning the stored markdown
- * into HTML for display.
+ * TUNED variant of `main`. Same stored-XSS vulnerability and same
+ * attacker-controlled source (req.body.memo), same lack of sanitization in
+ * `marked`. The ONLY change: the unescaped HTML is now assembled in JavaScript
+ * and emitted via res.send(), instead of being handed to res.render() and
+ * unescaped inside views/memos.ejs (`<%- %>`).
  *
- * THE VULNERABILITY: marked does NOT sanitize. Raw HTML in the input
- * (e.g. <img src=x onerror=alert(1)>) is passed straight through into the
- * rendered output, and the template injects it unescaped -> stored XSS.
+ * WHY: on `main` the dangerous sink lives in the EJS template, which Coverity's
+ * JS taint engine does not parse into — so the req.body -> marked -> render
+ * dataflow goes cold at res.render() and no finding is raised. Here the same
+ * taint reaches an HTTP-response sink (res.send) entirely within analyzable JS,
+ * to test whether the original miss was purely template opacity.
  */
 function MemosHandler(db) {
     const memosDAO = new MemosDAO(db);
@@ -29,13 +32,22 @@ function MemosHandler(db) {
         memosDAO.getAllMemos((err, docs) => {
             if (err) return next(err);
 
-            // Render each stored memo's markdown to HTML. No sanitizer.
-            const memosList = docs.map((doc) => ({
-                date: doc.date,
-                html: marked.parse(doc.memo || "")
-            }));
+            // Build the page HTML in JS. marked still does NOT sanitize, so raw
+            // HTML in a stored memo flows straight through.
+            const memoHtml = docs
+                .map((doc) => `<div class="memo">${marked.parse(doc.memo || "")}` +
+                              `<div class="date">${doc.date}</div></div>`)
+                .join("");
 
-            return res.render("memos", { memosList, userId });
+            // SINK: unescaped, attacker-influenced HTML written to the HTTP
+            // response in analyzable JS (no template indirection).
+            const page = `<!DOCTYPE html><html><body>` +
+                `<h1>Memos</h1><p>Logged in as: ${userId || "guest"}</p>` +
+                `<form method="POST" action="/memos">` +
+                `<textarea name="memo"></textarea><button>Add memo</button></form>` +
+                `<h2>Your memos</h2>${memoHtml}</body></html>`;
+
+            return res.send(page);
         });
     };
 }
