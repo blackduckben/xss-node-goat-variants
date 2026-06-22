@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Memos (XSS demo)</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; }
+        .memo { border: 1px solid #ddd; border-radius: 6px; padding: 0.75rem 1rem; margin: 0.75rem 0; }
+        .date { color: #888; font-size: 0.8rem; }
+        textarea { width: 100%; height: 6rem; }
+        .hint { background: #fff8e1; border: 1px solid #ffe082; padding: 0.5rem 0.75rem; border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <h1>Memos</h1>
+    <p>Logged in as: <%= userId || "guest" %></p>
+
+    <form method="POST" action="/memos">
+        <label for="memo">New memo (markdown supported):</label>
+        <textarea id="memo" name="memo" placeholder="Try: <img src=x onerror=alert(document.domain)>"></textarea>
+        <button type="submit">Add memo</button>
+    </form>
+
+    <p class="hint">
+        Vulnerable on purpose. Submit
+        <code>&lt;img src=x onerror=alert(document.domain)&gt;</code>
+        and it will execute when the list re-renders.
+    </p>
+
+    <h2>Your memos</h2>
+    <% memosList.forEach((memo) => { %>
+        <div class="memo">
+            <!-- VULNERABILITY: marked output injected with the unescaped EJS output tag -->
+            <%- memo.html %>
+            <div class="date"><%= memo.date %></div>
+        </div>
+    <% }); %>
+</body>
+</html>
