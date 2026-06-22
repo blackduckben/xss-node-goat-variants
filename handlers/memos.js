@@ -1,42 +1,41 @@
 "use strict";
 
-const MemosDAO = require("../data/memos-dao").MemosDAO;
 const { marked } = require("marked");
 
 /*
- * Faithful to the NodeGoat handler you provided: addMemos stores the raw
- * req.body.memo, then displayMemos reads them all back and renders the
- * "memos" view. The only addition is `marked` turning the stored markdown
- * into HTML for display.
+ * TEST B — isolating experiment (branched from `main`). Paired with main-test-a.
  *
- * THE VULNERABILITY: marked does NOT sanitize. Raw HTML in the input
- * (e.g. <img src=x onerror=alert(1)>) is passed straight through into the
- * rendered output, and the template injects it unescaped -> stored XSS.
+ * Removes the DAO store/retrieve round-trip but KEEPS `marked`. The posted value
+ * flows: req.body.memo -> marked.parse() -> res.send(). The only difference from
+ * Test A is the `marked.parse()` call.
+ *
+ * Purpose: separate the two remaining suspects behind the main/main-tuned misses.
+ *   - If Test A is HIGH and Test B is 0  -> `marked.parse()` is treated as a
+ *     sanitizer (its output is considered safe), killing the taint.
+ *   - If Test B is also HIGH             -> `marked` is transparent to the engine,
+ *     so the DAO round-trip is what breaks taint on `main`/`main-tuned`.
+ *
+ * See NOTES.md.
  */
 function MemosHandler(db) {
-    const memosDAO = new MemosDAO(db);
 
-    this.addMemos = (req, res, next) => {
-        memosDAO.insert(req.body.memo, (err, docs) => {
-            if (err) return next(err);
-            this.displayMemos(req, res, next);
-        });
+    this.addMemos = (req, res) => {
+        // marked does NOT sanitize: raw HTML in req.body.memo passes through.
+        // SINK: result concatenated straight into the HTTP response. No storage.
+        const page = `<!DOCTYPE html><html><body>` +
+            `<h1>Memos</h1><p>You posted:</p>` +
+            `<div class="memo">${marked.parse(req.body.memo || "")}</div>` +
+            `<form method="POST" action="/memos">` +
+            `<textarea name="memo"></textarea><button>Add memo</button></form>` +
+            `</body></html>`;
+        res.send(page);
     };
 
-    this.displayMemos = (req, res, next) => {
-        const { userId } = req.session;
-
-        memosDAO.getAllMemos((err, docs) => {
-            if (err) return next(err);
-
-            // Render each stored memo's markdown to HTML. No sanitizer.
-            const memosList = docs.map((doc) => ({
-                date: doc.date,
-                html: marked.parse(doc.memo || "")
-            }));
-
-            return res.render("memos", { memosList, userId });
-        });
+    this.displayMemos = (req, res) => {
+        res.send(`<!DOCTYPE html><html><body><h1>Memos</h1>` +
+            `<form method="POST" action="/memos">` +
+            `<textarea name="memo"></textarea><button>Add memo</button></form>` +
+            `</body></html>`);
     };
 }
 
