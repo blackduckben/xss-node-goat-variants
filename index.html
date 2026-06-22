@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>XSS via URL context (javascript: href)</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
+        .container { padding: 1rem; }
+        #nav {
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+            min-height: 2rem;
+            background: #f9f9f9;
+        }
+        .hint {
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>XSS via URL context (javascript: href)</h1>
+
+        <div class="hint">
+            A "continue" link is built from the <code>?next=</code> parameter — a
+            classic post-login / breadcrumb redirect pattern. Setting an
+            <code>href</code> to a <code>javascript:</code> URI executes on click.
+            HTML-entity escaping does <em>not</em> stop this; it is a URL-context sink.
+            <br>Try: <code>?next=javascript:alert(document.domain)</code>
+        </div>
+
+        <div id="nav">Building navigation…</div>
+    </div>
+
+    <script>
+        function buildNav() {
+            // SOURCE: query parameter (recognized untrusted source)
+            const params = new URLSearchParams(location.search);
+            const next = params.get("next") || "/home";
+
+            // SINK: user-controlled value placed in a URL context (href).
+            // A "javascript:" URI here runs script on click — escaping HTML
+            // entities would not help, because this is not an HTML-body sink.
+            const link = document.createElement("a");
+            link.href = next;                 // <-- URL-context XSS sink
+            link.textContent = "Continue →";
+
+            const nav = document.getElementById("nav");
+            nav.textContent = "";
+            nav.appendChild(link);
+        }
+
+        window.addEventListener("load", buildNav);
+    </script>
+</body>
+</html>
