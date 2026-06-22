@@ -2,20 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Event Handler Attribute XSS</title>
+    <title>Event Handler Attribute XSS (tuned: location.hash source)</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
         .container { padding: 1rem; }
-        input { padding: 0.5rem; font-size: 1rem; width: 80%; }
         button { padding: 0.5rem 1rem; cursor: pointer; }
-        #output {
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            padding: 1rem;
-            margin-top: 1rem;
-            min-height: 2rem;
-            background: #f9f9f9;
-        }
         .hint {
             background: #fff8e1;
             border: 1px solid #ffe082;
@@ -28,41 +19,36 @@
 </head>
 <body>
     <div class="container">
-        <h1>Event Handler Attribute XSS</h1>
+        <h1>Event Handler Attribute XSS (tuned)</h1>
 
         <div class="hint">
-            <strong>Try this:</strong>
-            <code>" onload="alert('Event Handler XSS')</code>
-            <br>(This breaks the attribute context and injects a new event handler)
+            <strong>Try this in the URL:</strong>
+            <code>#" onmouseover="alert('Event Handler XSS')</code>
+            <br>The button label is read from <code>location.hash</code> and
+            interpolated into a <code>title="..."</code> attribute, breaking out
+            of the attribute context.
         </div>
-
-        <label for="input">Button label:</label>
-        <br><br>
-        <input id="input" type="text" placeholder="Enter button text..." value="Click me">
-        <button onclick="createButton()">Create Button</button>
 
         <div id="container"></div>
     </div>
 
     <script>
         function createButton() {
-            const userText = document.getElementById("input").value;
+            // TUNED: button label sourced from location.hash (a recognized
+            // DOM-XSS taint source) instead of an in-page form field's .value
+            const userText = decodeURIComponent(location.hash.slice(1));
 
-            // VULNERABLE: Building HTML with unsanitized user input in attribute context
-            // Breaking out of the title attribute and injecting event handler
+            // SINK unchanged from the base branch: unsanitized interpolation
+            // into an HTML attribute context, then innerHTML
             const html = `<button title="${userText}">Custom Button</button>`;
 
             document.getElementById("container").innerHTML = html;
         }
 
-        // Example of what happens when you submit:
-        // Input: " onmouseover="alert('XSS')
+        // Exploit fragment: #" onmouseover="alert('XSS')
         // Result: <button title="" onmouseover="alert('XSS')">Custom Button</button>
-        // The attribute breaks and a new event is created
-
-        document.getElementById("input").addEventListener("keypress", function(e) {
-            if (e.key === "Enter") createButton();
-        });
+        window.addEventListener("load", createButton);
+        window.addEventListener("hashchange", createButton);
     </script>
 </body>
 </html>
