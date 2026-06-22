@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>jQuery-based XSS</title>
+    <title>Template Literal XSS</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
         .container { padding: 1rem; }
@@ -28,35 +28,45 @@
 </head>
 <body>
     <div class="container">
-        <h1>jQuery-based XSS</h1>
+        <h1>Template Literal XSS</h1>
 
         <div class="hint">
             <strong>Try this:</strong>
-            <code>&lt;img src=x onerror=alert('jQuery XSS')&gt;</code>
+            <code>&lt;img src=x onerror=alert('Template Literal XSS')&gt;</code>
         </div>
 
-        <label for="input">Comment (jQuery .html()):</label>
+        <label for="input">Search users by name:</label>
         <br><br>
-        <input id="input" type="text" placeholder="Type something...">
-        <button onclick="renderComment()">Post</button>
+        <input id="input" type="text" placeholder="Type a name...">
+        <button onclick="searchUsers()">Search</button>
 
-        <div id="comments"></div>
+        <div id="results"></div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        function renderComment() {
-            const userComment = document.getElementById("input").value;
+        // Mock user database
+        const users = [
+            { id: 1, name: "Alice" },
+            { id: 2, name: "Bob" },
+            { id: 3, name: "Charlie" }
+        ];
 
-            // VULNERABLE: jQuery .html() with unsanitized user input
-            // Same issue as innerHTML but via jQuery
-            $("#comments").html(userComment);
+        function searchUsers() {
+            const searchTerm = document.getElementById("input").value;
+            const results = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-            document.getElementById("input").value = "";
+            // VULNERABLE: Building HTML via template literal with unsanitized user input
+            // String interpolation in backticks, then inserted via innerHTML
+            const html = `
+                <h3>Search results for "${searchTerm}":</h3>
+                ${results.map(user => `<p><strong>${user.name}</strong> (ID: ${user.id})</p>`).join("")}
+            `;
+
+            document.getElementById("results").innerHTML = html;
         }
 
         document.getElementById("input").addEventListener("keypress", function(e) {
-            if (e.key === "Enter") renderComment();
+            if (e.key === "Enter") searchUsers();
         });
     </script>
 </body>
