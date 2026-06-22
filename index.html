@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Stored DOM XSS (localStorage round-trip)</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
+        .container { padding: 1rem; }
+        #greeting {
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+            min-height: 2rem;
+            background: #f9f9f9;
+        }
+        .hint {
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stored DOM XSS (localStorage round-trip)</h1>
+
+        <div class="hint">
+            <strong>Step 1 — "save" a display name via the URL:</strong>
+            <code>#&lt;img src=x onerror=alert(document.domain)&gt;</code>
+            <br><strong>Step 2 — reload without the fragment.</strong> The value
+            is read back from <code>localStorage</code> and rendered, so the
+            payload fires on every later visit (persistence boundary).
+        </div>
+
+        <div id="greeting"></div>
+    </div>
+
+    <script>
+        const KEY = "displayName";
+
+        // WRITE: if the URL carries a fragment, persist it as the user's display name.
+        // Source = location.hash (recognized untrusted source).
+        const incoming = decodeURIComponent(location.hash.slice(1));
+        if (incoming) {
+            localStorage.setItem(KEY, incoming);
+        }
+
+        // READ (round-trip): later loads pull the value back out of localStorage.
+        // The taint has crossed a persistence boundary between setItem and getItem.
+        function renderGreeting() {
+            const name = localStorage.getItem(KEY) || "Guest";
+
+            // SINK: stored value rendered to innerHTML with no escaping
+            document.getElementById("greeting").innerHTML = "Welcome back, " + name + "!";
+        }
+
+        window.addEventListener("load", renderGreeting);
+    </script>
+</body>
+</html>
